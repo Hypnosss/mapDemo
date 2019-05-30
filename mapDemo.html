@@ -1,0 +1,212 @@
+<!-- canvas
+
+function 绘制表格
+
+function 点云中点的显示(eg每1s更新一次)
+
+？function 速度计算
+
+function 摄像头显示/不显示
+
+过滤器
+
+    function 输出目标数量
+
+？？？ cloud/object -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>canvas</title>
+</head>
+<body>
+    <div>
+        横向显示距离 <input id = "x">
+        纵向显示距离 <input id = "y">
+        <input type = "button" value = "confirm" id = "button1">
+        <input type = "button" value = "画矩形" id = "button2">
+
+    </div>
+    <canvas style = "border:1px solid blue; position: absolute; margin: 30px" id = "canvas"></canvas>
+    <canvas style = "border:1px solid red; position: absolute; margin: 30px; z-index = 10" id = "canvas2"></canvas>
+    <script>
+        var canvas  = document.getElementById("canvas");
+        var canvas2  = document.getElementById("canvas2");
+        var ctx  = canvas.getContext("2d");
+        ctx.lineWidth = 2;
+        
+        const canvasHeight = 800;
+        const canvasWidth = 800;
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        canvas2.width = canvasWidth;
+        canvas2.height = canvasHeight;
+        const frq = 2;//缩放倍率
+
+        var scale = 1;
+        var isDrag = 0;
+        var numberx,numbery;
+        var startx,starty,endx,endy;
+        startx = starty = endx = endy = 0;
+        var totaldxMove,totaldyMove,totaldxZoom,totaldyZoom;
+        totaldxMove = totaldyMove = totaldxZoom = totaldyZoom = 0;
+        var imageObj = new Image();
+
+        var x = document.getElementById("x");
+        var y = document.getElementById("y");
+        var btn1 = document.getElementById("button1");
+        var btn2 = document.getElementById("button2");
+        var btn3 = document.getElementById("button3");
+
+        
+        
+        //画方格
+        function drawDashLine(x1,y1,x2,y2) {
+            ctx.setLineDash([3,3]);
+            ctx.beginPath();
+            ctx.moveTo(x1,y1);
+            ctx.lineTo(x2,y2);
+            ctx.stroke();
+        }
+        
+        btn1.onclick = function() {
+            numberx = x.value;
+            numbery = y.value;
+            for(let i = 1; i <= numberx; i++){
+                drawDashLine(canvasWidth/2 + 50*i, canvasHeight - 100, canvasWidth/2 + 50*i, canvasHeight - 100 - 50*numbery);
+                drawDashLine(canvasWidth/2 - 50*i, canvasHeight - 100, canvasWidth/2 - 50*i, canvasHeight - 100 - 50*numbery);   
+            }
+
+            for(let i = 0; i <= numbery; i++){
+                drawDashLine(canvasWidth/2 - 50*numberx, canvasHeight - 100 - 50*i, canvasWidth/2 + 50*numberx, canvasHeight - 100 - 50*i);
+            }
+
+            ctx.setLineDash([0,0]);
+            ctx.beginPath();
+            ctx.moveTo(canvasWidth/2, canvasHeight - 100);
+            ctx.lineTo(canvasWidth/2, canvasHeight - 100 - 50*numbery);
+            ctx.stroke();
+            
+            for(let i = 1; i <= numbery; i++){
+                ctx.fillText(i.toString(), canvasWidth/2 - 50*numberx - 10, canvasHeight - 95 - 50*i);
+            }
+
+            for(let i = 1; i < numberx; i++){
+                ctx.fillText(-i.toString(), canvasWidth/2 - 50*i - 3, canvasHeight - 90);
+                ctx.fillText(i.toString(), canvasWidth/2 + 50*i - 5, canvasHeight - 90);
+            }
+
+            ctx.fillText("0", canvasWidth/2 - 3, canvasHeight - 90);
+
+            imageObj.src = canvas.toDataURL();
+        }
+
+
+
+        //画矩形
+        btn2.onclick = function() {
+            ctx.rect(0,0,100,100);
+            ctx.stroke();
+            ctx.rect(50,50,50,50);
+            ctx.stroke();
+            ctx.rect(0,0,5,5);
+            ctx.stroke();
+            ctx.rect(650,0,150,150);
+            ctx.stroke();
+            ctx.rect(795,0,5,5);
+            ctx.stroke();
+            ctx.rect(300,300,150,150);
+            ctx.stroke();
+            ctx.rect(0,0,900,900);
+            ctx.stroke();
+            imageObj.src = canvas.toDataURL();
+        }
+
+
+
+        //缩放
+        canvas2.onwheel = function(event) {  
+            let up = event.wheelDelta>0?1:0;
+
+            let mousex = event.clientX - canvas.offsetLeft;
+            let mousey = event.clientY - canvas.offsetTop;
+            let truex = mousex/scale + totaldxZoom - totaldxMove;
+            let truey = mousey/scale + totaldyZoom - totaldyMove;
+
+            console.log(truex,truey);
+            if(up>0){   //滚轮向上
+                ctx.clearRect(0, 0, canvas.width,canvas.height);
+                scale *= frq;
+                ctx.scale(frq,frq);
+                ctx.translate( (1/frq - 1) * truex, (1/frq - 1) * truey);
+                ctx.drawImage(imageObj, 0, 0);
+
+                totaldxZoom += (frq - 1) * mousex / scale;
+                totaldyZoom += (frq - 1) * mousey / scale;
+            }   
+            else if(up===0){    
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                scale /= frq;
+                ctx.scale(1/frq,1/frq);
+                ctx.translate((frq - 1) * truex, (frq - 1) * truey);
+                ctx.drawImage(imageObj,0,0);
+
+                totaldxZoom += (1/frq - 1) * mousex / scale;
+                totaldyZoom += (1/frq - 1) * mousey / scale;
+            }  
+        }
+        
+
+
+        //移动
+        var oldx,oldy;
+        oldx = oldy = 0;
+
+        canvas2.onmousedown = function() {
+            isDrag = 1;
+            startx = oldx = event.clientX - canvas.offsetLeft;
+            starty = oldy = event.clientY - canvas.offsetTop; 
+            // console.log(event)
+        }
+
+        canvas2.onmouseup = function() {
+            isDrag = 0;
+            endx = event.clientX - canvas.offsetLeft;
+            endy = event.clientY - canvas.offsetTop;  
+            totaldxMove += (endx - startx)/scale;
+            totaldyMove += (endy - starty)/scale;
+        }
+
+        var functionMove = function(event) {
+            if(isDrag){
+                let newx = event.clientX - canvas.offsetLeft;
+                let newy = event.clientY - canvas.offsetTop;
+                let dx = newx - oldx;
+                let dy = newy - oldy;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.translate(dx/scale, dy/scale);
+                ctx.drawImage(imageObj, 0, 0);
+                oldx = newx;
+                oldy = newy;
+
+                console.log(newx, newy);
+            }
+        }
+
+        var th = function(context) {
+            //console.log(context)
+            clearTimeout(functionMove.tId);
+            functionMove.tId = setTimeout(() => {
+                functionMove(context)
+            }, 50);
+        }
+
+        canvas2.onmousemove = function(event) {
+            th(event);
+        }
+
+    </script>
+</body>
+</html>
